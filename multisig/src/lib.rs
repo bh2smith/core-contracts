@@ -4,7 +4,7 @@ use std::num::NonZeroU128;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::store::UnorderedMap;
+use near_sdk::store::{LookupMap, UnorderedMap};
 use near_sdk::{
     env, near_bindgen, AccountId, Allowance, Gas, NearToken, Promise, PromiseOrValue, PublicKey,
 };
@@ -85,7 +85,7 @@ pub struct MultiSigContract {
     request_nonce: RequestId,
     requests: UnorderedMap<RequestId, MultiSigRequestWithSigner>,
     confirmations: UnorderedMap<RequestId, HashSet<PublicKey>>,
-    num_requests_pk: UnorderedMap<PublicKey, u32>,
+    num_requests_pk: LookupMap<PublicKey, u32>,
     // per key
     active_requests_limit: u32,
 }
@@ -109,7 +109,7 @@ impl MultiSigContract {
             request_nonce: 0,
             requests: UnorderedMap::new(b"r".to_vec()),
             confirmations: UnorderedMap::new(b"c".to_vec()),
-            num_requests_pk: UnorderedMap::new(b"k".to_vec()),
+            num_requests_pk: LookupMap::new(b"k".to_vec()),
             active_requests_limit: 12,
         }
     }
