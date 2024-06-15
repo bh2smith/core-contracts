@@ -137,7 +137,7 @@ impl MultiSigContract {
         let request_added = MultiSigRequestWithSigner {
             signer_pk: env::signer_account_pk(),
             added_timestamp: env::block_timestamp(),
-            request: request,
+            request,
         };
         self.requests.insert(self.request_nonce, request_added);
         let confirmations = HashSet::new();
@@ -183,7 +183,7 @@ impl MultiSigContract {
                     self.assert_self_request(receiver_id.clone());
                     if let Some(permission) = permission {
                         promise.add_access_key_allowance(
-                            public_key.into(),
+                            public_key,
                             permission
                                 .allowance
                                 .map(|x| Allowance::Limited(NonZeroU128::new(x.0).unwrap()))
@@ -193,12 +193,12 @@ impl MultiSigContract {
                         )
                     } else {
                         // wallet UI should warn user if receiver_id == env::current_account_id(), adding FAK will render multisig useless
-                        promise.add_full_access_key(public_key.into())
+                        promise.add_full_access_key(public_key)
                     }
                 }
                 MultiSigRequestAction::DeleteKey { public_key } => {
                     self.assert_self_request(receiver_id.clone());
-                    let pk: PublicKey = public_key.into();
+                    let pk: PublicKey = public_key;
                     // delete outstanding requests by public_key
                     let request_ids: Vec<u32> = self
                         .requests
@@ -277,9 +277,7 @@ impl MultiSigContract {
         let original_signer_pk = request_with_signer.signer_pk;
         let mut num_requests = *self.num_requests_pk.get(&original_signer_pk).unwrap_or(&0);
         // safety check for underrun (unlikely since original_signer_pk must have num_requests_pk > 0)
-        if num_requests > 0 {
-            num_requests = num_requests - 1;
-        }
+        num_requests = num_requests.saturating_sub(1);
         self.num_requests_pk
             .insert(original_signer_pk, num_requests);
         // return request
@@ -327,7 +325,7 @@ impl MultiSigContract {
     }
 
     pub fn get_num_requests_pk(&self, public_key: PublicKey) -> u32 {
-        *self.num_requests_pk.get(&public_key.into()).unwrap_or(&0)
+        *self.num_requests_pk.get(&public_key).unwrap_or(&0)
     }
 
     pub fn list_request_ids(&self) -> Vec<RequestId> {
@@ -354,13 +352,13 @@ impl MultiSigContract {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
     use std::fmt::{Debug, Error, Formatter};
     use std::str::FromStr;
 
     use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::testing_env;
     use near_sdk::{AccountId, VMContext};
-    use near_sdk::{BlockHeight, EpochHeight};
 
     use super::*;
 
@@ -645,15 +643,15 @@ mod tests {
         // THIS TEST HAS WRONG ERROR MESSAGE!
         // Request cannot be deleted immediately after creation.
         let amount = NearToken::from_yoctonear(1_000);
-        let key = PublicKey::from_str("HghiythFFPjVXwc9BLNi8uqFmfQc1DWFrJQ4nE6ANo7R").unwrap();
+        let key = PublicKey::try_from([0; 33].to_vec()).unwrap();
         testing_env!(context_with_key(key, amount));
         let mut c = MultiSigContract::new(3);
         let request_id = c.add_request(MultiSigRequest {
             receiver_id: bob(),
             actions: vec![MultiSigRequestAction::Transfer { amount }],
         });
-        let wrong_key =
-            PublicKey::from_str("Fg2jtsiMrprn7zgKKUk79qM1hWhANsFyE6JSX4txLEuy").unwrap();
+        // this does not appear to be the wrong key!
+        let wrong_key = PublicKey::try_from([1; 65].to_vec()).unwrap();
         testing_env!(context_with_key_future(wrong_key, amount));
         c.delete_request(request_id);
     }
