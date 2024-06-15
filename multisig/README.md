@@ -248,7 +248,8 @@ After this, still will need to confirm this with `num_confirmations` you have se
 
 __Create an account__
 
-```
+```bash
 near call illia.near add_request '{"request": {"receiver_id": "new_account.near", "actions": [{"type", "CreateAccount"}, {"type": "Transfer", "amount": "1000000000000000000000"}, {"type": "AddKey", "public_key": "<public key for the new account>"}]}}' --accountId illia.near
+
 near call illia.near confirm '{"request_id": <request number from previous line>}'
 ```
